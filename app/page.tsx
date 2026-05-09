@@ -147,8 +147,8 @@ function wm(state, action) {
       return { ...state, nextZ: nz, activeId: action.app.id,
         windows: [...state.windows, {
           id: action.app.id, title: action.app.title,
-          x: Math.min(80 + n * 28, (typeof window !== "undefined" ? window.innerWidth : 1200) - action.app.w - 20),
-          y: Math.min(60 + n * 22, (typeof window !== "undefined" ? window.innerHeight : 900) - action.app.h - 60),
+          x: Math.max(0, Math.min(80 + n * 28, (typeof window !== "undefined" ? window.innerWidth : 1200) - action.app.w - 20)),
+  		  y: Math.max(0, Math.min(60 + n * 22, (typeof window !== "undefined" ? window.innerHeight : 900) - action.app.h - 60)),
           width: action.app.w, height: action.app.h,
           minimized: false, maximized: false, z: nz,
         }] };
@@ -308,7 +308,7 @@ function ProjectsApp() {
         {!proj ? (
           <motion.div key="grid" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}>
             <h2 style={{ fontSize:17, fontWeight:600, margin:"0 0 18px" }}>Projects</h2>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:13 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))", gap:13 }}>
               {PROJECTS.map((p, i) => (
                 <motion.div key={p.id} initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }}
                   transition={{ delay:i*0.08 }} whileHover={{ y:-2 }} onClick={() => setSel(p.id)}
@@ -876,11 +876,16 @@ function AppWindow({ win, isActive, dispatch, children }) {
     document.addEventListener("mouseup", up);
   }, [win, dispatch]);
 
-  const AppIconComp = APPS.find(a => a.id === win.id)?.icon ?? FileText;
-  const ws = win.maximized
+const AppIconComp = APPS.find(a => a.id === win.id)?.icon ?? FileText;
+  
+  // NEW: Check if the user is on a mobile device (screen width less than 768px)
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
+  // NEW: Auto-maximize if the window is maximized OR if it's on a mobile phone
+  const ws = (win.maximized || isMobile)
     ? { left:0, top:0, width:"100vw", height:"calc(100vh - 48px)", borderRadius:0 }
     : { left:win.x, top:win.y, width:win.width, height:win.height, borderRadius:10 };
-
+	
   return (
     <AnimatePresence>
       {!win.minimized && (
