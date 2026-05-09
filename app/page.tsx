@@ -812,7 +812,7 @@ function AppWindow({ win, isActive, dispatch, children }) {
   const ref = useRef(null);
   const drag = useRef(null);
   
-  // 1. This is the ONLY time isMobile should be defined:
+  // 1. This is the ONLY time isMobile is defined:
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -822,7 +822,7 @@ function AppWindow({ win, isActive, dispatch, children }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // 1. Existing Drag Logic (Moving the window)
+  // 2. Existing Drag Logic (Moving the window)
   const startDrag = useCallback((e) => {
     if (win.maximized || e.button !== 0) return;
     e.preventDefault();
@@ -845,7 +845,7 @@ function AppWindow({ win, isActive, dispatch, children }) {
     document.addEventListener("mouseup", up);
   }, [win, dispatch]);
 
-  // 2. NEW: Resize Logic
+  // 3. Resize Logic
   const startResize = useCallback((e, dir) => {
     if (win.maximized || e.button !== 0) return;
     e.preventDefault();
@@ -887,16 +887,13 @@ function AppWindow({ win, isActive, dispatch, children }) {
     document.addEventListener("mouseup", up);
   }, [win, dispatch]);
 
-const AppIconComp = APPS.find(a => a.id === win.id)?.icon ?? FileText;
+  const AppIconComp = APPS.find(a => a.id === win.id)?.icon ?? FileText;
   
-  // NEW: Check if the user is on a mobile device (screen width less than 768px)
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-
-  // NEW: Auto-maximize if the window is maximized OR if it's on a mobile phone
+  // 4. Auto-maximize if the window is maximized OR if it's on a mobile phone
   const ws = (win.maximized || isMobile)
     ? { left:0, top:0, width:"100vw", height:"calc(100vh - 48px)", borderRadius:0 }
     : { left:win.x, top:win.y, width:win.width, height:win.height, borderRadius:10 };
-	
+    
   return (
     <AnimatePresence>
       {!win.minimized && (
