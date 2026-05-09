@@ -115,7 +115,7 @@ const APPS = [
   { id: "contact",    title: "Contact",     icon: FcSms,          initX: 20, initY: 420, w: 600, h: 520 },
   { id: "terminal",   title: "Terminal",    icon: FcCommandLine,  initX: 20, initY: 520, w: 720, h: 480 },
   { id: "settings",   title: "Settings",    icon: FcSettings,     initX: 20, initY: 620, w: 600, h: 500 },
-  { id: "recycle",    title: "Recycle Bin", icon: FcFullTrash,    initX: null, initY: null, w: 640, h: 430 }, // Calculated dynamically
+  { id: "recycle",    title: "Recycle Bin", icon: FcFullTrash,    initX: null, initY: null, w: 640, h: 430 },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -149,7 +149,7 @@ function wm(state, action) {
         windows: [...state.windows, {
           id: action.app.id, title: action.app.title,
           x: Math.max(0, Math.min(80 + n * 28, (typeof window !== "undefined" ? window.innerWidth : 1200) - action.app.w - 20)),
-  		  y: Math.max(0, Math.min(60 + n * 22, (typeof window !== "undefined" ? window.innerHeight : 900) - action.app.h - 60)),
+          y: Math.max(0, Math.min(60 + n * 22, (typeof window !== "undefined" ? window.innerHeight : 900) - action.app.h - 60)),
           width: action.app.w, height: action.app.h,
           minimized: false, maximized: false, z: nz,
         }] };
@@ -167,7 +167,7 @@ function wm(state, action) {
         windows: state.windows.map(w => w.id === action.id ? { ...w, z: nz, minimized: false } : w) }; }
     case "MOVE": return { ...state,
       windows: state.windows.map(w => w.id === action.id ? { ...w, x: action.x, y: action.y } : w) };
-	case "RESIZE": return { ...state,
+    case "RESIZE": return { ...state,
       windows: state.windows.map(w => w.id === action.id ? { ...w, width: action.w, height: action.h } : w) };
     default: return state;
   }
@@ -806,13 +806,12 @@ function RecycleBinApp() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   APP WINDOW CHROME (Now Resizable!)
+   APP WINDOW CHROME
 ═══════════════════════════════════════════════════════════════ */
 function AppWindow({ win, isActive, dispatch, children }) {
   const ref = useRef(null);
   const drag = useRef(null);
   
-  // 1. This is the ONLY time isMobile is defined:
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -822,7 +821,6 @@ function AppWindow({ win, isActive, dispatch, children }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // 2. Existing Drag Logic (Moving the window)
   const startDrag = useCallback((e) => {
     if (win.maximized || e.button !== 0) return;
     e.preventDefault();
@@ -845,11 +843,10 @@ function AppWindow({ win, isActive, dispatch, children }) {
     document.addEventListener("mouseup", up);
   }, [win, dispatch]);
 
-  // 3. Resize Logic
   const startResize = useCallback((e, dir) => {
     if (win.maximized || e.button !== 0) return;
     e.preventDefault();
-    e.stopPropagation(); // Prevents the window from focusing/dragging while resizing
+    e.stopPropagation(); 
 
     const startX = e.clientX;
     const startY = e.clientY;
@@ -857,14 +854,12 @@ function AppWindow({ win, isActive, dispatch, children }) {
     const startH = win.height;
 
     const move = (ev) => {
-      // Calculate new dimensions (min width: 300px, min height: 200px)
       let newW = startW;
       let newH = startH;
       
       if (dir.includes('e')) newW = Math.max(300, startW + (ev.clientX - startX));
       if (dir.includes('s')) newH = Math.max(200, startH + (ev.clientY - startY));
 
-      // Live update the DOM for smoothness
       if (ref.current) {
         if (dir.includes('e')) ref.current.style.width = newW + "px";
         if (dir.includes('s')) ref.current.style.height = newH + "px";
@@ -874,7 +869,6 @@ function AppWindow({ win, isActive, dispatch, children }) {
     };
 
     const up = () => {
-      // Save the final size to state
       if (drag.current?.w !== undefined) {
         dispatch({ type: "RESIZE", id: win.id, w: drag.current.w, h: drag.current.h });
       }
@@ -889,11 +883,10 @@ function AppWindow({ win, isActive, dispatch, children }) {
 
   const AppIconComp = APPS.find(a => a.id === win.id)?.icon ?? FileText;
   
-  // 4. Auto-maximize if the window is maximized OR if it's on a mobile phone
   const ws = (win.maximized || isMobile)
     ? { left:0, top:0, width:"100vw", height:"calc(100vh - 48px)", borderRadius:0 }
     : { left:win.x, top:win.y, width:win.width, height:win.height, borderRadius:10 };
-    
+
   return (
     <AnimatePresence>
       {!win.minimized && (
@@ -935,14 +928,10 @@ function AppWindow({ win, isActive, dispatch, children }) {
 
           <div style={{ flex:1, overflow:"hidden", position:"relative" }}>{children}</div>
 
-          {/* NEW: Invisible Resize Handles (Only active if not maximized) */}
           {!win.maximized && (
             <>
-              {/* Right Edge */}
               <div onMouseDown={e => startResize(e, 'e')} style={{ position:"absolute", right:0, top:0, bottom:10, width:6, cursor:"ew-resize", zIndex:10 }} />
-              {/* Bottom Edge */}
               <div onMouseDown={e => startResize(e, 's')} style={{ position:"absolute", left:0, bottom:0, right:10, height:6, cursor:"ns-resize", zIndex:10 }} />
-              {/* Bottom Right Corner */}
               <div onMouseDown={e => startResize(e, 'se')} style={{ position:"absolute", right:0, bottom:0, width:14, height:14, cursor:"nwse-resize", zIndex:11 }} />
             </>
           )}
@@ -961,15 +950,13 @@ function DesktopIcon({ app, onOpen }) {
   const [clicks, sc] = useState(0);
   const timer = useRef(null);
   
-  // State to hold the final coordinates
   const [coords, setCoords] = useState({ x: app.initX || 0, y: app.initY || 0 });
 
   useEffect(() => {
-    // If initX/initY is null (like our Recycle Bin), calculate bottom right corner
     if (app.initX === null || app.initY === null) {
       const calculateBottomRight = () => {
-        const iconWidth = 82; // Our icon wrapper width
-        const iconHeight = 100; // Rough height including text
+        const iconWidth = 82;
+        const iconHeight = 100; 
         const taskbarHeight = 48;
         const padding = 20;
 
@@ -979,10 +966,7 @@ function DesktopIcon({ app, onOpen }) {
         });
       };
 
-      // Calculate initially
       calculateBottomRight();
-
-      // Recalculate if the window is resized
       window.addEventListener('resize', calculateBottomRight);
       return () => window.removeEventListener('resize', calculateBottomRight);
     }
@@ -1078,11 +1062,10 @@ function StartMenu({ onClose, onOpen }) {
       <div style={{ padding:"10px 16px 14px", borderTop:"1px solid rgba(255,255,255,0.07)",
         display:"flex", justifyContent:"flex-end", gap:8 }}>
         
-        {/* Settings Button */}
         <button 
           onClick={() => {
-            onOpen(APPS.find(a => a.id === "settings")); // Opens the Settings app
-            onClose(); // Closes the Start Menu
+            onOpen(APPS.find(a => a.id === "settings"));
+            onClose(); 
           }}
           style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px",
             background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.09)",
@@ -1090,9 +1073,8 @@ function StartMenu({ onClose, onOpen }) {
           <Settings size={13}/> Settings
         </button>
 
-        {/* Power / Restart Button */}
         <button 
-          onClick={() => window.location.reload()} // Restarts the OS
+          onClick={() => window.location.reload()}
           style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px",
             background:"rgba(255,70,70,0.1)", border:"1px solid rgba(255,70,70,0.2)",
             borderRadius:7, color:"#ff6464", fontSize:12, cursor:"pointer", fontFamily:F }}>
@@ -1196,13 +1178,11 @@ function Taskbar({ windows, activeId, dispatch, startOpen, setStartOpen }) {
 function Desktop({ onOpen, bg, children }) {
   const [ctx, sctx] = useState(null);
 
-  // Added functions to make the right click actually do something!
   const handleContextMenuClick = (action) => {
-    sctx(null); // Close the menu
+    sctx(null);
     if (action === "Refresh") window.location.reload();
     if (action === "New Folder") alert("Creating a new folder is not supported in this portfolio OS.");
     if (action === "Personalize") {
-      // Actually open the new Settings app!
       onOpen(APPS.find(a => a.id === "settings"));
     }
   };
@@ -1220,18 +1200,15 @@ function Desktop({ onOpen, bg, children }) {
     <div onContextMenu={e => { e.preventDefault(); sctx({ x:e.clientX, y:e.clientY }); }}
       onClick={() => sctx(null)}
       style={{ width:"100vw", height:"calc(100vh - 48px)", position:"relative", overflow:"hidden",
-        background: bg // THIS IS THE MAGIC LINE: It now uses your dynamic wallpaper state!
+        background: bg
       }}>
       
-      {/* Desktop icons container (Grid layout removed so dragging works freely!) */}
       <div style={{ position:"absolute", inset:0 }}>
         {APPS.map(app => <DesktopIcon key={app.id} app={app} onOpen={onOpen}/>)}
       </div>
 
-      {/* Windows */}
       {children}
 
-      {/* Context menu (Right Click) */}
       <AnimatePresence>
         {ctx && (
           <motion.div initial={{ opacity:0, scale:0.94 }} animate={{ opacity:1, scale:1 }}
@@ -1299,32 +1276,15 @@ function BootScreen({ onDone }) {
 /* ═══════════════════════════════════════════════════════════════
    MAIN APP
 ═══════════════════════════════════════════════════════════════ */
-const APP_CONTENT = {
-  about:      <AboutApp/>,
-  experience: <ExperienceApp/>,
-  projects:   <ProjectsApp/>,
-  cv:         <CVApp/>,
-  contact:    <ContactApp/>,
-  terminal:   <TerminalApp/>,
-  recycle:    <RecycleBinApp/>,
-  // ADD THIS LINE:
-  settings:   <SettingsApp/>, 
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   MAIN APP
-═══════════════════════════════════════════════════════════════ */
 export default function App() {
   const [booted, sb] = useState(false);
   const [state, dispatch] = useReducer(wm, WM0);
   const [startOpen, sos] = useState(false);
   
-  // NEW: Global background state
   const [bg, setBg] = useState(WALLPAPERS[0].val);
 
   const openApp = useCallback((app) => { dispatch({ type:"OPEN", app }); sos(false); }, []);
 
-  // NEW: Render apps via function so we can pass props to Settings
   const renderAppContent = (id) => {
     switch (id) {
       case "about":      return <AboutApp />;
@@ -1355,7 +1315,6 @@ export default function App() {
 
       {booted && (
         <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ duration:0.5 }}>
-          {/* NEW: Pass bg to Desktop */}
           <Desktop onOpen={openApp} bg={bg}>
             {state.windows.map(win => (
               <AppWindow key={win.id} win={win} isActive={state.activeId === win.id} dispatch={dispatch}>
