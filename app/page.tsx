@@ -811,6 +811,16 @@ function RecycleBinApp() {
 function AppWindow({ win, isActive, dispatch, children }) {
   const ref = useRef(null);
   const drag = useRef(null);
+  
+  // 1. NEW: Bulletproof Mobile State Detection
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize(); // Check immediately when the app loads
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // 1. Existing Drag Logic (Moving the window)
   const startDrag = useCallback((e) => {
