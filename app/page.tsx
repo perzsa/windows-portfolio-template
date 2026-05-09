@@ -8,7 +8,7 @@ import {
   Github, Linkedin, ExternalLink, Download, Send, ChevronRight,
   Code, Database, Globe, Zap, Monitor, Volume2, Bell, Settings,
   Award, Star, Layers, Server, CheckCircle, MapPin,
-  Power, RefreshCw, FolderOpen as Folder
+  Power, RefreshCw, FolderOpen as Folder, Gamepad2
 } from "lucide-react";
 
 import { FolderRegular, MailRegular, DeleteRegular } from "@fluentui/react-icons";
@@ -116,6 +116,7 @@ const APPS = [
   { id: "terminal",   title: "Terminal",    icon: FcCommandLine,  initX: 20, initY: 520, w: 720, h: 480 },
   { id: "settings",   title: "Settings",    icon: FcSettings,     initX: 20, initY: 620, w: 600, h: 500 },
   { id: "recycle",    title: "Recycle Bin", icon: FcFullTrash,    initX: null, initY: null, w: 640, h: 430 },
+  { id: "games", title: "Games", icon: Gamepad2, initX: 120, initY: 20, w: 700, h: 550 },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -806,6 +807,411 @@ function RecycleBinApp() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   MINESWEEPER LOGIC
+═══════════════════════════════════════════════════════════════ */
+function Minesweeper() {
+  const size = 10;
+  const minesCount = 15;
+  const [grid, setGrid] = useState([]);
+  const [status, setStatus] = useState("playing"); // playing, won, lost
+
+  const initGame = useCallback(() => {
+    let newGrid = Array(size).fill().map(() => Array(size).fill().map(() => ({
+      isMine: false, revealed: false, flagged: false, count: 0
+    })));
+
+    // Place mines
+    let placed = 0;
+    while (placed < minesCount) {
+      let r = Math.floor(Math.random() * size);
+      let c = Math.floor(Math.random() * size);
+      if (!newGrid[r][c].isMine) {
+        newGrid[r][c].isMine = true;
+        placed++;
+      }
+    }
+
+    // Calculate numbers
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (newGrid[r][c].isMine) continue;
+        let count = 0;
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            if (newGrid[r + dr]?.[c + dc]?.isMine) count++;
+          }
+        }
+        newGrid[r][c].count = count;
+      }
+    }
+    setGrid(newGrid);
+    setStatus("playing");
+  }, []);
+
+  useEffect(() => { initGame(); }, [initGame]);
+
+  const reveal = (r, c) => {
+    if (status !== "playing" || grid[r][c].revealed || grid[r][c].flagged) return;
+    let next = [...grid.map(row => [...row])];
+    
+    if (next[r][c].isMine) {
+      setStatus("lost");
+      next.forEach(row => row.forEach(cell => { if(cell.isMine) cell.revealed = true; }));
+    } else {
+      const flood = (row, col) => {
+        if (row < 0 || row >= size || col < 0 || col >= size || next[row][col].revealed || next[row][col].isMine) return;
+        next[row][col].revealed = true;
+        if (next[row][col].count === 0) {
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) flood(row + dr, col + dc);
+          }
+        }
+      };
+      flood(r, c);
+    }
+    setGrid(next);
+    
+    // Check win
+    const hiddenNonMines = next.flat().filter(c => !c.isMine && !c.revealed).length;
+    if (hiddenNonMines === 0 && !next[r][c].isMine) setStatus("won");
+  };
+
+  const toggleFlag = (e, r, c) => {
+    e.preventDefault();
+    if (status !== "playing" || grid[r][c].revealed) return;
+    let next = [...grid.map(row => [...row])];
+    next[r][c].flagged = !next[r][c].flagged;
+    setGrid(next);
+  };
+
+  return (
+    <div style={{ textAlign: "center", userSelect: "none" }}>
+      <div style={{ marginBottom: 15, display: "flex", justifyContent: "center", gap: 20, alignItems: "center" }}>
+        <div style={{ fontSize: 24 }}>{status === "won" ? "😎" : status === "lost" ? "😵" : "🙂"}</div>
+        <button onClick={initGame} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid #444", color: "#fff", padding: "4px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12 }}>Reset</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${size}, 30px)`, gap: 2, background: "#333", padding: 2, border: "2px solid #555" }}>
+        {grid.map((row, r) => row.map((cell, c) => (
+          <div 
+            key={`${r}-${c}`}
+            onClick={() => reveal(r, c)}
+            onContextMenu={(e) => toggleFlag(e, r, c)}
+            style={{ 
+              width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 14, fontWeight: "bold", cursor: "pointer",
+              background: cell.revealed ? "#bbb" : "#eee",
+              color: cell.revealed ? (cell.isMine ? "#000" : ["", "#00f", "#080", "#f00", "#008", "#800", "#088", "#000", "#888"][cell.count]) : "#eee",
+              border: cell.revealed ? "1px solid #999" : "2px solid",
+              borderTopColor: cell.revealed ? "#999" : "#fff",
+              borderLeftColor: cell.revealed ? "#999" : "#fff",
+              borderRightColor: cell.revealed ? "#999" : "#999",
+              borderBottomColor: cell.revealed ? "#999" : "#999",
+            }}
+          >
+            {cell.revealed ? (cell.isMine ? "💣" : (cell.count || "")) : (cell.flagged ? "🚩" : "")}
+          </div>
+        )))}
+      </div>
+      {status !== "playing" && (
+        <div style={{ marginTop: 15, fontWeight: "bold", color: status === "won" ? "#0f0" : "#f44" }}>
+          {status === "won" ? "YOU WIN!" : "GAME OVER"}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TIC-TAC-TOE LOGIC
+═══════════════════════════════════════════════════════════════ */
+function TicTacToe() {
+  const [board, setBoard] = useState(Array(9).fill(null));
+  const [xIsNext, setXIsNext] = useState(true);
+
+  const calculateWinner = (squares) => {
+    const lines = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+      [0, 3, 6], [1, 4, 7], [2, 5, 8], // Cols
+      [0, 4, 8], [2, 4, 6],             // Diagonals
+    ];
+    for (let i = 0; i < lines.length; i++) {
+      const [a, b, c] = lines[i];
+      if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
+        return squares[a];
+      }
+    }
+    return null;
+  };
+
+  const winner = calculateWinner(board);
+  const isDraw = !winner && board.every(s => s !== null);
+  const status = winner ? `Winner: ${winner}` : isDraw ? "It's a Draw!" : `Next player: ${xIsNext ? 'X' : 'O'}`;
+
+  const handleClick = (i) => {
+    if (winner || board[i]) return;
+    const nextBoard = board.slice();
+    nextBoard[i] = xIsNext ? 'X' : 'O';
+    setBoard(nextBoard);
+    setXIsNext(!xIsNext);
+  };
+
+  const reset = () => {
+    setBoard(Array(9).fill(null));
+    setXIsNext(true);
+  };
+
+  return (
+    <div style={{ textAlign: "center", fontFamily: F }}>
+      <div style={{ marginBottom: 20, fontSize: 18, fontWeight: 600, color: winner ? "#00d4aa" : "#fff" }}>
+        {status}
+      </div>
+      
+      <div style={{ 
+        display: "grid", 
+        gridTemplateColumns: "repeat(3, 100px)", 
+        gap: 10, 
+        margin: "0 auto",
+        width: "fit-content"
+      }}>
+        {board.map((square, i) => (
+          <button
+            key={i}
+            onClick={() => handleClick(i)}
+            style={{
+              width: 100, height: 100,
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 8,
+              fontSize: 36,
+              fontWeight: "bold",
+              color: square === 'X' ? "#0078d7" : "#f25022",
+              cursor: square || winner ? "default" : "pointer",
+              transition: "background 0.2s"
+            }}
+            onMouseEnter={e => { if(!square && !winner) e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+            onMouseLeave={e => { if(!square && !winner) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+          >
+            {square}
+          </button>
+        ))}
+      </div>
+
+      <button 
+        onClick={reset}
+        style={{
+          marginTop: 25,
+          padding: "8px 24px",
+          background: BLUE,
+          border: "none",
+          borderRadius: 6,
+          color: "#fff",
+          fontSize: 13,
+          cursor: "pointer",
+          boxShadow: `0 4px 12px ${BLUE}44`
+        }}
+      >
+        Reset Game
+      </button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PONG LOGIC
+═══════════════════════════════════════════════════════════════ */
+function Pong() {
+  const canvasRef = useRef(null);
+  const [score, setScore] = useState({ player: 0, ai: 0 });
+  const paddleHeight = 60;
+  const paddleWidth = 10;
+  const ballSize = 8;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    let animationFrameId;
+
+    // Game State
+    let ballX = canvas.width / 2;
+    let ballY = canvas.height / 2;
+    let ballSpeedX = 4;
+    let ballSpeedY = 4;
+    let playerY = canvas.height / 2 - paddleHeight / 2;
+    let aiY = canvas.height / 2 - paddleHeight / 2;
+
+    // Mouse Tracking
+    const handleMouseMove = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseY = e.clientY - rect.top;
+      playerY = Math.max(0, Math.min(canvas.height - paddleHeight, mouseY - paddleHeight / 2));
+    };
+    canvas.addEventListener('mousemove', handleMouseMove);
+
+    const update = () => {
+      // Move Ball
+      ballX += ballSpeedX;
+      ballY += ballSpeedY;
+
+      // Wall Collisions (Top/Bottom)
+      if (ballY <= 0 || ballY >= canvas.height) ballSpeedY = -ballSpeedY;
+
+      // AI Logic (Simple Tracking)
+      const aiCenter = aiY + paddleHeight / 2;
+      if (aiCenter < ballY - 10) aiY += 3.5;
+      else if (aiCenter > ballY + 10) aiY -= 3.5;
+
+      // Paddle Collisions
+      if (ballX <= paddleWidth) {
+        if (ballY > playerY && ballY < playerY + paddleHeight) {
+          ballSpeedX = -ballSpeedX;
+          ballSpeedX *= 1.05; // Speed up slightly
+        } else {
+          setScore(s => ({ ...s, ai: s.ai + 1 }));
+          resetBall();
+        }
+      }
+      if (ballX >= canvas.width - paddleWidth) {
+        if (ballY > aiY && ballY < aiY + paddleHeight) {
+          ballSpeedX = -ballSpeedX;
+        } else {
+          setScore(s => ({ ...s, player: s.player + 1 }));
+          resetBall();
+        }
+      }
+
+      // Draw
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Center Line
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.beginPath(); ctx.moveTo(canvas.width/2, 0); ctx.lineTo(canvas.width/2, canvas.height); ctx.stroke();
+
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, playerY, paddleWidth, paddleHeight); // Player
+      ctx.fillRect(canvas.width - paddleWidth, aiY, paddleWidth, paddleHeight); // AI
+      ctx.fillRect(ballX - ballSize/2, ballY - ballSize/2, ballSize, ballSize); // Ball
+
+      animationFrameId = requestAnimationFrame(update);
+    };
+
+    const resetBall = () => {
+      ballX = canvas.width / 2;
+      ballY = canvas.height / 2;
+      ballSpeedX = -ballSpeedX > 0 ? 4 : -4;
+    };
+
+    update();
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
+
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ fontFamily: 'monospace', fontSize: 32, marginBottom: 10, color: '#fff' }}>
+        {score.player} : {score.ai}
+      </div>
+      <canvas 
+        ref={canvasRef} 
+        width={600} 
+        height={400} 
+        style={{ border: '2px solid rgba(255,255,255,0.1)', cursor: 'none', background: '#000' }} 
+      />
+      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 10 }}>Use your mouse to move the paddle</p>
+    </div>
+  );
+}
+/* ═══════════════════════════════════════════════════════════════
+   GAMES APP HUB
+═══════════════════════════════════════════════════════════════ */
+function GamesApp() {
+  const [activeGame, setActiveGame] = useState(null); // 'minesweeper', 'tictactoe', 'pong', or null
+
+  // The Hub Menu (Grid of Cards)
+  if (!activeGame) {
+    return (
+      <div style={{ fontFamily: F, color: "#fff", height: "100%", padding: "28px", overflow: "auto", ...SB }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: "4px" }}>Games</h2>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: "24px" }}>Select a game to play:</p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+          {/* Minesweeper Card */}
+          <GameCard 
+            title="Minesweeper" 
+            desc="Find all the hidden mines" 
+            icon={<div style={{fontSize: 32}}>💣</div>} 
+            onClick={() => setActiveGame('minesweeper')} 
+          />
+          {/* Tic-Tac-Toe Card */}
+          <GameCard 
+            title="Tic-Tac-Toe" 
+            desc="Classic X's and O's" 
+            icon={<X size={32} color="#0078d7" />} 
+            onClick={() => setActiveGame('tictactoe')} 
+          />
+          {/* Pong Card */}
+          <GameCard 
+            title="Pong" 
+            desc="The retro arcade classic" 
+            icon={<div style={{width: 24, height: 24, borderRadius: 12, background: "#fff"}} />} 
+            onClick={() => setActiveGame('pong')} 
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // This is where the actual game will show up
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "#000" }}>
+      <div style={{ padding: "8px 12px", background: "rgba(255,255,255,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.7)" }}>
+          {activeGame.toUpperCase()}
+        </span>
+        <button 
+          onClick={() => setActiveGame(null)}
+          style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", fontSize: 11, padding: "2px 8px", borderRadius: 4, cursor: "pointer" }}
+        >
+          Exit Game
+        </button>
+      </div>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+		  {activeGame === 'minesweeper' && <Minesweeper />}
+		  {activeGame === 'tictactoe' && <TicTacToe />}
+		  {activeGame === 'pong' && <Pong />} {/* Updated this line */}
+	  </div>
+    </div>
+  );
+}
+
+// Helper component for the cards
+function GameCard({ title, desc, icon, onClick }) {
+  return (
+    <button 
+      onClick={onClick}
+      style={{ 
+        background: "rgba(255,255,255,0.04)", 
+        border: "1px solid rgba(255,255,255,0.08)", 
+        borderRadius: "12px", 
+        padding: "24px", 
+        cursor: "pointer",
+        textAlign: "center",
+        transition: "all 0.2s"
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.borderColor = "#0078d7"; }}
+      onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
+    >
+      <div style={{ marginBottom: "12px", display: "flex", justifyContent: "center" }}>{icon}</div>
+      <div style={{ fontSize: "15px", fontWeight: 600, marginBottom: "4px", color: "#fff" }}>{title}</div>
+      <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>{desc}</div>
+    </button>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    APP WINDOW CHROME
 ═══════════════════════════════════════════════════════════════ */
 function AppWindow({ win, isActive, dispatch, children }) {
@@ -1295,6 +1701,7 @@ export default function App() {
       case "terminal":   return <TerminalApp />;
       case "recycle":    return <RecycleBinApp />;
       case "settings":   return <SettingsApp bg={bg} setBg={setBg} />;
+	  case "games": return <GamesApp />;
       default:           return null;
     }
   };
