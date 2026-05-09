@@ -812,12 +812,12 @@ function AppWindow({ win, isActive, dispatch, children }) {
   const ref = useRef(null);
   const drag = useRef(null);
   
-  // 1. NEW: Bulletproof Mobile State Detection
+  // 1. This is the ONLY time isMobile should be defined:
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
-    handleResize(); // Check immediately when the app loads
+    handleResize(); 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
