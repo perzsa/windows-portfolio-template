@@ -22,7 +22,7 @@ Want to run this locally? Follow these steps to get your OS booting up in second
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/perzsa/windows-portfolio-template.git](https://github.com/YourUsername/windows-portfolio-template.git)
+   git clone [https://github.com/perzsa/windows-portfolio-template.git](https://github.com/perzsa/windows-portfolio-template.git)
 Navigate into the folder:
 
 Bash
